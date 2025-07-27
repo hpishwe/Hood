@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "hood-chat-app",
   "builds": [
     {
       "src": "package.json",
@@ -23,10 +22,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "functions": {
-    "backend/server.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
