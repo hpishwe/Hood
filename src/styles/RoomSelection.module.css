@@ -1,0 +1,226 @@
+/* src/styles/RoomSelection.module.css */
+@import url('https://fonts.googleapis.com/css2?family=Lalezar&display=swap');
+
+.container {
+  min-height: 100vh;
+  background: #ff9800;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background blobs - matching your existing pages */
+.container::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  left: -100px;
+  width: 200px;
+  height: 180px;
+  background: #f6e49f;
+  border-radius: 60% 40% 70% 30% / 60% 30% 70% 40%;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.container::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  right: -120px;
+  width: 250px;
+  height: 200px;
+  background: #f6e49f;
+  border-radius: 40% 60% 30% 70% / 40% 60% 60% 40%;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.blob1 {
+  position: absolute;
+  top: 20%;
+  right: -50px;
+  width: 150px;
+  height: 120px;
+  background: #f6e49f;
+  border-radius: 70% 30% 60% 40% / 50% 60% 40% 50%;
+  opacity: 0.6;
+  z-index: 1;
+}
+
+.blob2 {
+  position: absolute;
+  bottom: 30%;
+  left: -30px;
+  width: 120px;
+  height: 140px;
+  background: #f6e49f;
+  border-radius: 30% 70% 40% 60% / 40% 50% 60% 50%;
+  opacity: 0.5;
+  z-index: 1;
+}
+
+.card {
+  background: #f6e49f;
+  border-radius: 24px;
+  border: 2.5px solid #232323;
+  min-width: 520px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  padding: 50px 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+.heading {
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+  font-weight: bold;
+  color: #363636;
+  text-align: center;
+  font-family: 'Lalezar', cursive;
+}
+
+.optionsSection {
+  margin-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.subheading {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #323232;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.optionBtn {
+  background: #ffffff;
+  color: #232323;
+  border: 2px solid #232323;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.18s;
+  min-width: 80px;
+}
+
+.optionBtn:hover {
+  background: #f0f0f0;
+  transform: translateY(-1px);
+}
+
+.optionBtn.active {
+  background: #ff9800;
+  color: #232323;
+  box-shadow: 0 2px 0 #232323;
+}
+
+.codeInput {
+  height: 42px;
+  width: 200px;
+  background: #484b3c;
+  color: #fff;
+  font-size: 1.06rem;
+  border: none;
+  border-radius: 7px;
+  padding: 0 14px;
+  font-weight: bold;
+  outline: none;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.codeInput::placeholder {
+  color: #ccc;
+  text-align: center;
+}
+
+.actionsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  align-items: center;
+}
+
+.actionBtn {
+  background: #484b3c;
+  color: #fff;
+  border: 2px solid #232323;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 12px 30px;
+  cursor: pointer;
+  transition: all 0.18s;
+  min-width: 200px;
+}
+
+.actionBtn:hover {
+  background: #5a5d4e;
+  transform: translateY(-1px);
+}
+
+.actionBtn:active {
+  transform: translateY(0);
+}
+
+.joinBtn {
+  background: #ff9800;
+  color: #232323;
+  border: 2px solid #232323;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 14px 40px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #232323;
+  transition: background 0.18s;
+  margin-top: 20px;
+}
+
+.joinBtn:active,
+.joinBtn:focus {
+  background: #f8a214;
+}
+
+.joinBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .card {
+    min-width: 90vw;
+    padding: 40px 30px;
+  }
+  
+  .heading {
+    font-size: 2rem;
+  }
+  
+  .buttonGroup {
+    gap: 8px;
+  }
+  
+  .optionBtn {
+    padding: 10px 18px;
+    font-size: 1rem;
+  }
+}
