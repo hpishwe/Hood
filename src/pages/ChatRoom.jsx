@@ -1,5 +1,5 @@
 // src/pages/ChatRoom.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import socketService from '../utils/socket';
 import styles from '../styles/ChatRoom.module.css';
@@ -48,8 +48,7 @@ export default function ChatRoom({ userInfo, roomInfo }) {
       return;
     }
 
-    // Connect to socket server
-    const socket = socketService.connect(userInfo);
+    socketService.connect(userInfo);
 
     // Set up event listeners
     socketService.onAuthenticated((response) => {
@@ -147,7 +146,7 @@ export default function ChatRoom({ userInfo, roomInfo }) {
     return () => {
       socketService.disconnect();
     };
-  }, [userInfo, roomInfo, navigate]);
+  }, [userInfo, roomInfo, navigate, getRoomDisplayInfo]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
