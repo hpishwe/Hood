@@ -7,10 +7,17 @@ class SocketService {
     this.isConnected = false;
     this.userInfo = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 3;
+    this.eventListenersAttached = false;
   }
 
   connect(userInfo) {
+    // Prevent multiple connections
+    if (this.socket && this.socket.connected) {
+      console.log('📌 Socket already connected, reusing existing connection');
+      return this.socket;
+    }
+
     // Store user info for reconnection attempts
     this.userInfo = userInfo;
     
@@ -21,23 +28,19 @@ class SocketService {
     
     // Disconnect any existing connection first
     if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
+      this.cleanupSocket();
     }
     
-    // Create new socket connection with robust configuration
+    // Create new socket connection with stable configuration
     this.socket = io(backendUrl, {
-      transports: ['polling', 'websocket'], // Try polling first, then upgrade to websocket
+      transports: ['polling', 'websocket'], // Start with polling for stability
       timeout: 30000,
-      forceNew: true,
-      reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      forceNew: false, // Don't force new connection every time
+      reconnection: false, // Disable automatic reconnection to prevent loops
       withCredentials: true,
       autoConnect: true,
-      upgrade: true, // Allow transport upgrades
-      rememberUpgrade: false // Don't remember the upgrade for next time
+      upgrade: true,
+      rememberUpgrade: false
     });
 
     // Set up connection event handlers
@@ -47,7 +50,10 @@ class SocketService {
   }
 
   setupEventHandlers() {
-    if (!this.socket) return;
+    if (!this.socket || this.eventListenersAttached) return;
+    
+    console.log('🔧 Setting up socket event handlers...');
+    this.eventListenersAttached = true;
 
     // Connection established
     this.socket.on('connect', () => {
@@ -66,13 +72,13 @@ class SocketService {
       console.log('❌ Disconnected from backend. Reason:', reason);
       this.isConnected = false;
       
-      // Log different disconnect reasons for debugging
+      // Don't attempt manual reconnection to prevent loops
       if (reason === 'io server disconnect') {
-        console.log('🔄 Server disconnected the client, will attempt to reconnect...');
+        console.log('🔄 Server disconnected the client');
       } else if (reason === 'io client disconnect') {
         console.log('🛑 Client disconnected manually');
       } else if (reason === 'ping timeout') {
-        console.log('⏰ Connection timed out, attempting to reconnect...');
+        console.log('⏰ Connection timed out');
       }
     });
 
@@ -86,63 +92,41 @@ class SocketService {
         console.error('❌ Max reconnection attempts reached');
       }
     });
-
-    // Reconnection attempt
-    this.socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log(`🔄 Reconnection attempt #${attemptNumber}`);
-    });
-
-    // Successful reconnection
-    this.socket.on('reconnect', (attemptNumber) => {
-      console.log(`✅ Reconnected after ${attemptNumber} attempts`);
-      this.isConnected = true;
-      this.reconnectAttempts = 0;
-      
-      // Re-authenticate after reconnection
-      if (this.userInfo) {
-        this.authenticate(this.userInfo);
-      }
-    });
-
-    // Failed to reconnect
-    this.socket.on('reconnect_failed', () => {
-      console.error('❌ Failed to reconnect after maximum attempts');
-      this.isConnected = false;
-    });
   }
 
   authenticate(userInfo) {
-    if (this.socket && this.isConnected) {
+    if (this.socket && this.socket.connected) {
       console.log('🔐 Authenticating user:', userInfo.nickname);
       this.socket.emit('authenticate', userInfo);
     } else {
-      console.warn('⚠️  Cannot authenticate: socket not connected');
+      console.warn('⚠️ Cannot authenticate: socket not connected');
     }
   }
 
   joinRoom(roomData) {
-    if (this.socket && this.isConnected) {
+    if (this.socket && this.socket.connected) {
       console.log('🏠 Joining room:', roomData.type, roomData.code || '');
       this.socket.emit('join-room', roomData);
     } else {
-      console.warn('⚠️  Cannot join room: socket not connected');
+      console.warn('⚠️ Cannot join room: socket not connected');
     }
   }
 
   sendMessage(message) {
-    if (this.socket && this.isConnected) {
+    if (this.socket && this.socket.connected) {
       console.log('💬 Sending message:', message);
       this.socket.emit('send-message', { content: message });
+      return true;
     } else {
-      console.warn('⚠️  Cannot send message: socket not connected');
+      console.warn('⚠️ Cannot send message: socket not connected');
       return false;
     }
-    return true;
   }
 
-  // Event listener registration methods
+  // Event listener registration methods with duplicate prevention
   onAuthenticated(callback) {
     if (this.socket) {
+      this.socket.off('authenticated'); // Remove existing listeners
       this.socket.on('authenticated', (data) => {
         console.log('✅ User authenticated:', data);
         callback(data);
@@ -152,6 +136,7 @@ class SocketService {
 
   onRoomJoined(callback) {
     if (this.socket) {
+      this.socket.off('room-joined'); // Remove existing listeners
       this.socket.on('room-joined', (data) => {
         console.log('✅ Room joined:', data);
         callback(data);
@@ -161,6 +146,7 @@ class SocketService {
 
   onMessageReceived(callback) {
     if (this.socket) {
+      this.socket.off('receive-message'); // Remove existing listeners
       this.socket.on('receive-message', (data) => {
         console.log('📨 Message received:', data);
         callback(data);
@@ -170,6 +156,7 @@ class SocketService {
 
   onUserJoined(callback) {
     if (this.socket) {
+      this.socket.off('user-joined'); // Remove existing listeners
       this.socket.on('user-joined', (data) => {
         console.log('👋 User joined:', data.user.nickname);
         callback(data);
@@ -179,6 +166,7 @@ class SocketService {
 
   onUserLeft(callback) {
     if (this.socket) {
+      this.socket.off('user-left'); // Remove existing listeners
       this.socket.on('user-left', (data) => {
         console.log('👋 User left:', data.nickname);
         callback(data);
@@ -188,7 +176,7 @@ class SocketService {
 
   // Connection status methods
   isSocketConnected() {
-    return this.socket && this.isConnected && this.socket.connected;
+    return this.socket && this.socket.connected && this.isConnected;
   }
 
   getConnectionState() {
@@ -198,9 +186,20 @@ class SocketService {
     return 'disconnected';
   }
 
+  // Clean up socket without full disconnect
+  cleanupSocket() {
+    if (this.socket) {
+      console.log('🧹 Cleaning up existing socket...');
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+      this.eventListenersAttached = false;
+    }
+  }
+
   // Graceful disconnect with cleanup
   disconnect() {
-    console.log('🧹 Cleaning up socket connection...');
+    console.log('🧹 Disconnecting socket service...');
     
     if (this.socket) {
       // Remove all event listeners to prevent memory leaks
@@ -217,28 +216,32 @@ class SocketService {
     this.isConnected = false;
     this.userInfo = null;
     this.reconnectAttempts = 0;
+    this.eventListenersAttached = false;
     
-    console.log('✅ Socket cleanup completed');
+    console.log('✅ Socket service disconnected and cleaned up');
   }
 
   // Utility method to manually trigger reconnection
   forceReconnect() {
     if (this.socket) {
       console.log('🔄 Forcing reconnection...');
-      this.socket.disconnect();
-      this.socket.connect();
+      this.cleanupSocket();
+      if (this.userInfo) {
+        this.connect(this.userInfo);
+      }
     }
   }
 
   // Health check method
   ping() {
-    if (this.socket && this.isConnected) {
+    if (this.socket && this.socket.connected) {
       this.socket.emit('ping');
     }
   }
 
   onPong(callback) {
     if (this.socket) {
+      this.socket.off('pong'); // Remove existing listeners
       this.socket.on('pong', callback);
     }
   }

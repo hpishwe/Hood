@@ -1,5 +1,5 @@
 // src/pages/ChatRoom.jsx
-import React, { useState, useEffect , useCallback} from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socketService from '../utils/socket';
 import styles from '../styles/ChatRoom.module.css';
@@ -11,8 +11,10 @@ export default function ChatRoom({ userInfo, roomInfo }) {
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(null);
   const navigate = useNavigate();
+  const hasConnected = useRef(false);
+  const eventListenersSetup = useRef(false);
 
-  const getRoomDisplayInfo = () => {
+  const getRoomDisplayInfo = useCallback(() => {
     if (!currentRoom && !roomInfo) return { name: 'Loading...', subtitle: '', icon: '💬' };
     
     if (roomInfo.type === 'global') {
@@ -40,15 +42,13 @@ export default function ChatRoom({ userInfo, roomInfo }) {
       subtitle: 'Private conversation',
       icon: '💬'
     };
-  };
+  }, [currentRoom, roomInfo]);
 
-  useEffect(() => {
-    if (!userInfo || !roomInfo) {
-      navigate('/room-selection');
-      return;
-    }
-
-    socketService.connect(userInfo);
+  const setupEventListeners = useCallback(() => {
+    if (eventListenersSetup.current) return;
+    
+    console.log('🔧 Setting up event listeners...');
+    eventListenersSetup.current = true;
 
     // Set up event listeners
     socketService.onAuthenticated((response) => {
@@ -79,7 +79,7 @@ export default function ChatRoom({ userInfo, roomInfo }) {
       const welcomeMessage = {
         id: `welcome-${Date.now()}`,
         user: 'System',
-        content: `Welcome to ${roomDisplayInfo.name}! 🎉 `,
+        content: `Welcome to ${roomDisplayInfo.name}! 🎉`,
         timestamp: new Date(),
         isSystem: true
       };
@@ -141,23 +141,65 @@ export default function ChatRoom({ userInfo, roomInfo }) {
       };
       setMessages(prev => [...prev, leaveMessage]);
     });
+  }, [userInfo, roomInfo, getRoomDisplayInfo]);
 
-    // Cleanup on unmount
+  useEffect(() => {
+    if (!userInfo || !roomInfo) {
+      navigate('/room-selection');
+      return;
+    }
+
+    // Prevent multiple connections
+    if (hasConnected.current) {
+      console.log('📌 Connection already established, skipping...');
+      return;
+    }
+
+    console.log('🚀 ChatRoom mounting, connecting to socket...');
+    hasConnected.current = true;
+
+    // Connect to socket server
+    socketService.connect(userInfo);
+
+    // Setup event listeners
+    setupEventListeners();
+
+    // Cleanup only on component unmount
     return () => {
-      socketService.disconnect();
+      console.log('🧹 ChatRoom unmounting, cleaning up...');
+      hasConnected.current = false;
+      eventListenersSetup.current = false;
+      
+      // Add delay to prevent immediate cleanup during React strict mode
+      setTimeout(() => {
+        if (!hasConnected.current) {
+          socketService.disconnect();
+        }
+      }, 1000);
     };
-  }, [userInfo, roomInfo, navigate, getRoomDisplayInfo]);
+  }, []); // Empty dependency array to run only once
+
+  // Separate effect for navigation guard
+  useEffect(() => {
+    if (!userInfo || !roomInfo) {
+      navigate('/room-selection');
+    }
+  }, [userInfo, roomInfo, navigate]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (newMessage.trim() && isConnected) {
-      socketService.sendMessage(newMessage.trim());
-      setNewMessage('');
+      const success = socketService.sendMessage(newMessage.trim());
+      if (success) {
+        setNewMessage('');
+      }
     }
   };
 
   const handleLeaveRoom = () => {
     if (window.confirm('Are you sure you want to leave this room?')) {
+      hasConnected.current = false;
+      eventListenersSetup.current = false;
       socketService.disconnect();
       navigate('/room-selection');
     }
