@@ -14,20 +14,24 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:3000",
   "https://hood-three.vercel.app",
-  "https://*.vercel.app",
-  process.env.FRONTEND_URL || "*"
+  "https://hood-three-git-main-hpishwe.vercel.app", // Git branch deployments
+  "https://hood-three-hpishwe.vercel.app",          // Alternative Vercel URL
+  /^https:\/\/hood-.*\.vercel\.app$/,               // Any hood-* Vercel domain
+  process.env.FRONTEND_URL
 ];
 
 const io = socketIo(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
     allowEIO3: true
   },
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  allowUpgrades: true
 });
 
 // Security and performance middleware
@@ -45,7 +49,9 @@ app.use(compression());
 // CORS middleware
 app.use(cors({
   origin: allowedOrigins,
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 
 app.use(express.json({ limit: '10mb' }));
