@@ -1,6 +1,7 @@
 // backend/server.js
 const express = require('express');
 const http = require('http');
+
 const socketIo = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
@@ -9,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000","https://*.vercel.app" ],
     methods: ["GET", "POST"]
   }
 });
@@ -19,7 +20,7 @@ const activeRooms = new Map(); // roomId -> Set of users
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:3000"
+  origin: ["http://localhost:3000","https://*.vercel.app"]
 }));
 app.use(express.json());
 
@@ -196,3 +197,7 @@ server.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
 });
+
+
+
+module.exports = app;
