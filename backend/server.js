@@ -1,43 +1,80 @@
 // backend/server.js
 const express = require('express');
 const http = require('http');
-
 const socketIo = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Production CORS setup for Render + Vercel
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://hood-three.vercel.app",
+  "https://*.vercel.app",
+  process.env.FRONTEND_URL || "*"
+];
+
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000","https://*.vercel.app" ],
-    methods: ["GET", "POST"]
-  }
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+    allowEIO3: true
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
+
+// Security and performance middleware
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", ...allowedOrigins]
+    }
+  }
+}));
+app.use(compression());
+
+// CORS middleware
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10mb' }));
 
 // In-memory room management
 const activeRooms = new Map(); // roomId -> Set of users
 
-// Middleware
-app.use(cors({
-  origin: ["http://localhost:3000","https://*.vercel.app"]
-}));
-app.use(express.json());
-
-// Routes
+// Health check endpoint for Render
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Hood Backend API',
     status: 'Running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/api/health',
-      socket: 'ws://localhost:5000'
+      socket: 'Socket.io enabled'
     }
   });
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ message: 'Backend server is running!' });
+  res.json({ 
+    message: 'Hood Backend server is running!',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    activeRooms: activeRooms.size,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Socket.io connection handling
@@ -53,7 +90,8 @@ io.on('connection', (socket) => {
       sessionId: userData.sessionId,
       nickname: userData.nickname,
       avatar: userData.avatar,
-      socketId: socket.id
+      socketId: socket.id,
+      joinedAt: new Date().toISOString()
     };
     
     // Send success response
@@ -92,7 +130,8 @@ io.on('connection', (socket) => {
       nickname: socket.userSession.nickname,
       avatar: socket.userSession.avatar,
       socketId: socket.id,
-      isActive: true
+      isActive: true,
+      joinedAt: new Date().toISOString()
     };
     
     activeRooms.get(roomId).add(currentUser);
@@ -190,14 +229,26 @@ io.on('connection', (socket) => {
       console.log('❌ User disconnected:', socket.id);
     }
   });
+
+  // Handle ping/pong for connection health
+  socket.on('ping', () => {
+    socket.emit('pong');
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Hood Backend server running on port ${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 CORS enabled for origins: ${allowedOrigins.join(', ')}`);
 });
-
-
-
-module.exports = app;
